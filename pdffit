@@ -1,0 +1,39 @@
+#! /bin/bash
+
+# resizes pdf to A4
+
+function usage() {
+  echo
+  echo "	Usage: `basename $0` [ -t tmp_dir ] input.pdf output.pdf"
+  echo
+  echo
+  exit 1
+}
+
+while getopts  "t:h" OPTION
+do
+  case $OPTION in
+    t) export TMPDIR="$OPTARG";;
+    h) usage;;
+  esac
+done
+shift $[ OPTIND - 1 ]
+input=$1
+shift
+output=$1
+shift
+
+TEMPDIR=`mktemp -d $(basename 0).XXXXXXXXXX` || exit 1
+trap 'rm -rf $TEMPDIR; exit 1' TERM INT KILL QUIT
+trap 'rm -rf $TEMPDIR' EXIT
+
+config=$1
+
+if [ -z "$input" -o -z "$output" ]; then
+  usage
+fi
+
+
+acroread -toPostScript -shrink -size a4 -pairs "$input" "$TEMPDIR"/converted.ps 
+psresize "$TEMPDIR"/converted.ps -pa4 "$TEMPDIR"/resized.ps
+ps2pdf "$TEMPDIR"/resized.ps "$output"

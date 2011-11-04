@@ -1,0 +1,6 @@
+#! /bin/bash
+
+# removes leading and trailing spaces. Collapses the rest of spaces to a single space
+
+cat "$@" | sed -re 's/^\s*//;s/\s+/ /g;s/\s*$//'
+

@@ -1,0 +1,12 @@
+#! /bin/bash
+
+# compares visually two pdf pages
+
+page=0
+is_bad=0
+while test $is_bad -eq 0; do
+  echo "Opening page $page" 
+  compare "$1[$page]" "$2[$page]" miff:- 2>/dev/null | display
+  is_bad=${PIPESTATUS[0]}
+  page=$((page+1))
+done

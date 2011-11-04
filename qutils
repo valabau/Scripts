@@ -1,0 +1,37 @@
+#! /bin/bash
+
+function qlist {
+  qstat -f  | 
+  sed -re '/^ *Job_Owner/,/^$/d' | 
+  awk '{
+         if ($0~/^Job Id:/) { 
+           if(NR>1) {
+             print jid, jnm
+           }
+           jid=$3
+         }
+         else if ($0~/^ *Job_Name =/) {
+           jnm=$3
+         }
+         else {
+           jnm=jnm $1
+         }
+       }
+       END {
+         print jid, jnm
+       }
+  '
+}
+
+function qdelname {
+  list=`qlist`
+  
+  for job in "$@"; do
+    echo $list | awk -v job="$job" '$2==job{print $1}'
+  done
+}
+
+function _complete_qdelname {
+  (qlist | awk '{printf $2" "}') 
+}
+compctl -K _complete_qdelname qdelname

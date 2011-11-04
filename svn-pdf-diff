@@ -1,0 +1,78 @@
+#! /bin/bash
+
+# generates a pdf-diff from two svn versions of a latex document
+
+function usage() {
+  echo
+  echo "	Usage: `basename $BASH_SOURCE` [ -r rev ] main.tex"
+  echo
+  echo
+  exit 1
+}
+
+function check {
+  echo "$*" > /dev/stderr
+  exit 1
+}
+
+DEBUG=0
+OUTPUT=diff.pdf
+if test -z "$TMPDIR"; then export TMPDIR=/tmp; fi
+
+while getopts  "o:r:vt:h" OPTION
+do
+  case $OPTION in
+    r) revision="$OPTARG";;
+    v) set -x;DEBUG=1;;
+    t) export TMPDIR="$OPTARG";;
+    o) OUTPUT="$OPTARG";;
+    h) usage;;
+  esac
+done
+shift $[ OPTIND - 1 ]
+
+TEMPDIR=`mktemp -d "$TMPDIR"/$(basename $BASH_SOURCE).XXXXXXXXXX` || exit 1
+if test "$DEBUG" -eq 1; then
+  trap 'echo tempdir=$TEMPDIR; exit 1' TERM INT KILL QUIT EXIT
+else
+  trap 'rm -rf $TEMPDIR; exit 1' TERM INT KILL QUIT
+  trap 'rm -rf $TEMPDIR' EXIT
+fi
+
+maintex=$1
+
+if [ -z "$maintex" ]; then
+  usage
+fi
+
+function preprocess_latex {
+  eval "$1$2" |
+  awk '!/input\{/ {print}
+  /input\{/ {
+  sub (/input\{/,"")
+  sub (/\}.*/,"")
+  cmd= "'"$1"'"$1".tex"
+  system(cmd)
+  }'
+} 
+
+preprocess_latex "cat " $1 > $TEMPDIR/new.tex
+
+if test -n "$revision"; then
+  case $lastele in
+    [0-9][0-9]*) 
+      URL="`svn info | awk '$1=="URL:"{$1="";print}'`"
+      preprocess_latex "svn -r $revision cat $URL/" $1 > $TEMPDIR/old.tex
+    ;;
+    *) 
+      preprocess_latex "svn -r $revision cat " $1 > $TEMPDIR/old.tex
+    ;;
+  esac
+else
+  preprocess_latex "svn cat " $1 > $TEMPDIR/old.tex
+fi
+
+latexdiff $TEMPDIR/old.tex $TEMPDIR/new.tex > $TEMPDIR/diff.tex 2>/dev/null || check "Error in latexdiff" 
+pdflatex -interaction batchmode -shell-escape -output-directory=$TEMPDIR $TEMPDIR/diff.tex &> /dev/null || check "Error in pdflatex"
+pdflatex -interaction batchmode -shell-escape -output-directory=$TEMPDIR $TEMPDIR/diff.tex &> /dev/null || check "Error in pdflatex"
+cp $TEMPDIR/diff.pdf "$OUTPUT" 

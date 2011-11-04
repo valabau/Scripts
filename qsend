@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Wrapper for qsub. Allows the execution of commands without the need to create a new shell script
+
+if `test $# -lt 2`; then
+   echo Usage: 
+   echo "	qsend job_name" command with options 
+   exit 1
+fi
+name="`echo \"$1\" | sed -re 's/\//./g'`"
+shift
+program=$(for p in "$@";do echo -n "${p//-/\-}"|sed 's/\\-/-/g;s/"/\\"/g;s/^\(.*\)$/"\1" /';done)
+workdir=$PWD
+
+EMAIL=valabau@gmail.com
+if `test -z "$EMAIL"`; then
+  EMAIL=$USER
+fi
+
+date=`date +%Y-%m-%d_%H.%M.%S.%N`
+mkdir -p "$workdir/.qsend" 
+stdout="$workdir/.qsend/$name.$date.out"
+stderr="$workdir/.qsend/$name.$date.err"
+
+
+qsub << EOQSUB
+#!/bin/bash
+#PBS -N $name 
+#PBS -m abe
+#PBS -M $EMAIL 
+#PBS -o $stdout
+#PBS -e $stderr
+#PBS -V
+
+. $HOME/.bashrc
+echo Workdir $workdir >> /dev/stderr 
+cd $workdir
+echo executing: $program >> /dev/stderr
+
+$program
+
+exit
+EOQSUB
+
+if `test $? -eq 0`; then
+  echo "Se ha encolado satifactoriamente el programa: "
+  echo "	$program"
+  echo "  stdout: $stdout"
+else
+  echo "Se ha producido un error al encolar el programa: "
+  echo "	$program"
+fi
