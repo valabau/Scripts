@@ -1,14 +1,9 @@
 #!/usr/bin/perl
 
-# strips latex comments for paper submission
-
 while (<STDIN>) { 
-  if (s/(?<!\\)\%.*$//) {
-    print if (not /^$/);
-  }
-  else {
-    print; 
-  }
+  s/(?<!\\)\%.*$/\%/;
+  #print if not /^\s*\%\s*$/; 
+  print
 }
 
 exit(0);
